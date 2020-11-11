@@ -13,7 +13,7 @@ Measurement = namedtuple('Measurement', ['panel_x', 'panel_y', 'pressure',
                                          'yaw', 'tilt', 'UNKNOWN',
                                          'touch_major', 'touch_minor',
                                          'tool_type', 'button_pressed'])
-Measurement.__new__.__defaults__ = (0.0,) * 7
+Measurement.__new__.__defaults__ = (0.0, 0.0, 0, 0, 0, 0, False)
 Axis = namedtuple('Axis', ['min', 'max', 'resolution'])
 DUTConfig = namedtuple('DUTConfig', ['client_id', 'x', 'y', 'pressure',
                                      'touch_major', 'touch_minor'])
