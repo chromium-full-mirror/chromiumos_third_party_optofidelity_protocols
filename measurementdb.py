@@ -19,13 +19,11 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-import traceback
-
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, DECIMAL, VARCHAR, BOOLEAN, BLOB
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, Text, BLOB
 from sqlalchemy.orm import relation, backref, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
-from sqlalchemy import create_engine
-from sqlalchemy import event
+from sqlalchemy import create_engine, event
+from sqlalchemy.exc import IntegrityError
 import json
 import time
 import sqlite3
@@ -36,13 +34,16 @@ Base = declarative_base()
 
 logger = logging.getLogger(__name__)
 
+
 def on_connect(conn, record):
     conn.execute('pragma foreign_keys=ON')
 
-def saveLastPath(path):
+
+def save_last_path(path):
     f = open(join_script_root_directory('config.json'), 'w')
-    f.write(json.dumps({"lastDB": path}))
+    f.write(json.dumps({'lastDB': path}))
     f.close()
+
 
 def create_sqlite_indices(database_file, indices):
     """ Creates indices to the SQLite database """
@@ -56,23 +57,24 @@ def create_sqlite_indices(database_file, indices):
         index_name = index_values[0] + '_fkey'
 
         if index_name not in curindices:
-            logging.info("Creating database index %s" % index_name)
+            logging.info('Creating database index %s' % index_name)
             create_index(db, index_name, index_values)
 
     db.close()
+
 
 def get_current_indices(database):
     """ Returns an array of currently declared indices in the database """
 
     c = database.cursor()
     c.execute("SELECT name FROM sqlite_master WHERE type = 'index'")
-    indices = [r[0] for r in c.fetchall()]
+    return [r[0] for r in c.fetchall()]
 
-    return indices
 
 def create_index(database, index_name, index_values):
     """ Creates the specified index in the database """
     database.execute('CREATE INDEX IF NOT EXISTS %s ON %s ( %s )' % (index_name, index_values[0], index_values[1]))
+
 
 class ResultDatabase:
 
@@ -83,16 +85,16 @@ class ResultDatabase:
 
         # curved line test contains different tests
         # define new ones here
-        self.CURVED_LINE_TESTS = {1: "Handwriting"}
+        self.CURVED_LINE_TESTS = {1: 'Handwriting'}
 
-        self.CURVED_ANALYSIS_TYPES = {1: ["path_accuracy",
-                                          "curved_path_linearity",
-                                          "reported_pos_proximity_to_robot_pos",
-                                          "path_length_comparison"]
+        self.CURVED_ANALYSIS_TYPES = {1: ['path_accuracy',
+                                          'curved_path_linearity',
+                                          'reported_pos_proximity_to_robot_pos',
+                                          'path_length_comparison']
                                       }
 
         self.initialize(filename, test_case_modules)
-        saveLastPath(filename)
+        save_last_path(filename)
 
     def initialize(self, filename, test_case_modules):
 
@@ -102,7 +104,6 @@ class ResultDatabase:
         self.session = sessionmaker(bind=self.db, autoflush=False)
         Base.metadata.create_all(self.db)
 
-        # TODO: Some explanation is in order.
         # These are database indices for various test and test result tables.
         indices = [
             ['dut_parameters', 'dut_id'],
@@ -127,159 +128,157 @@ class ResultDatabase:
 
         # Check if ResultDatabase already contains test types below.
         try:
-            # TODO: It would be nice if these test type names were defined in respective test case Python files.
-            # However, do we wan't the ID values to be unique if test case order or number changes? Perhaps hash from name?
+            # TODO (b/148627899): It would be nice if these test type names were defined in respective test case Python
+            #  files. However, do we want the ID values to be unique if test case order or number changes? Perhaps
+            #  hash from name?
             # Note: TestType integer IDs must match the ones used in analysis.
             session = self.session()
-            session.add( TestType( 0, 'One Finger Tap Test' ) )
-            session.add( TestType( 1, 'One Finger Swipe Test' ) )
-            session.add( TestType( 2, 'One Finger First Contact Latency Test' ) )
-            session.add( TestType( 5, 'MultiFinger Swipe Test'))
-            session.add( TestType( 8, 'MultiFinger Tap Test'))
-            session.add( TestType( 9, 'One Finger Stationary Jitter'))
-            session.add( TestType( 10, 'One Finger Tap Repeatability'))
-            session.add( TestType( 11, 'One Finger Stationary Reporting Rate Test'))
-            session.add( TestType( 12, 'One Finger Non Stationary Reporting Rate Test'))
-            session.add( TestType( 13, 'Linearity Test'))
-            session.add( TestType( 14, 'Separation Test'))
-            session.add( TestType( 15, 'Grid Accuracy Test'))
-            session.add( TestType( 16, 'Stationary Jitter Static Noise Test'))
-            session.add( TestType( 17, 'One Finger Tapping Repeatability Test'))
-            session.add( TestType( 18, 'Finger Tracking Test'))
-            session.add( TestType( 19, 'Finger To Edge Test'))
-            session.add( TestType( 20, 'Swipe Test'))
-            session.add( TestType( 21, 'Pinch Test'))
-            session.add( TestType( 22, 'Tap Test'))
-            session.add( TestType( 23, 'Repeated Taps Test'))
-            session.add( TestType( 24, 'Stationary Then Move Test'))
-            session.add( TestType( 25, 'Drumroll Test'))
-            session.add( TestType( 26, 'Compass Test'))
-            session.add( TestType( 27, 'Compass With Taps Test'))
-            session.add( TestType( 28, 'Stationary With Taps Test'))
+            session.add(TestType(0, 'One Finger Tap Test'))
+            session.add(TestType(1, 'One Finger Swipe Test'))
+            session.add(TestType(2, 'One Finger First Contact Latency Test'))
+            session.add(TestType(5, 'MultiFinger Swipe Test'))
+            session.add(TestType(8, 'MultiFinger Tap Test'))
+            session.add(TestType(9, 'One Finger Stationary Jitter'))
+            session.add(TestType(10, 'One Finger Tap Repeatability'))
+            session.add(TestType(11, 'One Finger Stationary Reporting Rate Test'))
+            session.add(TestType(12, 'One Finger Non Stationary Reporting Rate Test'))
+            session.add(TestType(13, 'Linearity Test'))
+            session.add(TestType(14, 'Separation Test'))
+            session.add(TestType(15, 'Grid Accuracy Test'))
+            session.add(TestType(16, 'Stationary Jitter Static Noise Test'))
+            session.add(TestType(17, 'One Finger Tapping Repeatability Test'))
+            session.add(TestType(18, 'Finger Tracking Test'))
+            session.add(TestType(19, 'Finger To Edge Test'))
+            session.add(TestType(20, 'Swipe Test'))
+            session.add(TestType(21, 'Pinch Test'))
+            session.add(TestType(22, 'Tap Test'))
+            session.add(TestType(23, 'Repeated Taps Test'))
+            session.add(TestType(24, 'Stationary Then Move Test'))
+            session.add(TestType(25, 'Drumroll Test'))
+            session.add(TestType(26, 'Compass Test'))
+            session.add(TestType(27, 'Compass With Taps Test'))
+            session.add(TestType(28, 'Stationary With Taps Test'))
             session.commit()
             session.close()
-        except:
-            # Already created
-            pass
-        try:
-            # Grid accuracy settings
-            self.checksetting(
-                Setting('max_error_edge', 1.5, 'mm', 'Max error in edge area (not including 4 corners and notch)'))
-            self.checksetting(
-                Setting('max_error_edge_corner_notch', 2.0, 'mm',
-                        'Max error in edge area (including 4 corners and notch'))
-            self.checksetting(
-                Setting('max_error_center', 1.0, 'mm', 'Max error in center area'))
-            self.checksetting(
-                Setting('grid_acc_missing_points', 10, '%', 'Max amount of missing points in percents'))
-
-            # Linearity settings
-            self.checksetting(
-                Setting('max_avg_of_max_errors', 0.75, 'mm',
-                        'Maximum allowed max of averages of max linearity errors '))
-            self.checksetting(
-                Setting('max_rms_error', 0.5, 'mm', 'Maximum allowed rms linearity error'))
-            self.checksetting(
-                Setting('min_report_rate', 120, 'Hz', 'Minimum reporting rate in active mode'))
-            self.checksetting(
-                Setting('min_report_rate_noise_inj_single', 120, 'Hz',
-                        'Minimum reporting rate with noise injected in active mode at single touch'))
-            self.checksetting(
-                Setting('min_report_rate_noise_inj_multi', 100, 'Hz',
-                        'Minimum reporting rate with noise injected in active mode at multi touch'))
-            self.checksetting(
-                Setting('max_missing_swipes', 10, '%', 'Maximum amount of missing swipes in percents'))
-            self.checksetting(
-                Setting('max_broken_lines', 0, 'pcs', 'Maximum amount of broken lines'))
-            self.checksetting(
-                Setting('max_ghost_fingers', 0, 'pcs', 'Maximum amount of ghost fingers'))
-            self.checksetting(Setting('jitter_mask', 10.0, "mm", "Non stationary jitter search mask"))
-
-            # Stationary jitter static noise settings
-            self.checksetting(
-                Setting('max_stat_jitter_no_noise', 0.5, 'mm', 'Max stationary jitter with no noise injected'))
-            self.checksetting(
-                Setting('max_stat_jitter_noise', 1.0, 'mm', 'Max stationary jitter with noise injected'))
-            self.checksetting(
-                Setting('max_noise_test_jitter', 1.0, 'mm', 'Max stationary jitter in static noise test'))
-            self.checksetting(
-                Setting('jitter_missing_points', 10, '%', 'Max percentage of allowed missing points'))
-
-            # Tapping repeatability settings
-            self.checksetting(
-                Setting('max_error_edge_down', 1.5, 'mm', 'Maximum repeatability error at the edge on pen down'))
-            self.checksetting(
-                Setting('max_error_edge_up', 1.5, 'mm', 'Maximum repeatability error at the edge on pen lift-off'))
-            self.checksetting(
-                Setting('max_error_corner_down', 1.5, 'mm', 'Maximum repeatability error in the corner on pen down'))
-            self.checksetting(
-                Setting('max_error_corner_up', 1.5, 'mm', 'Maximum repeatability error in the corner on pen lift-off'))
-            self.checksetting(
-                Setting('max_error_center_down', 1.0, 'mm', 'Maximum repeatability error at the center on pen down'))
-            self.checksetting(
-                Setting('max_error_center_up', 1.0, 'mm', 'Maximum repeatability error at the center on pen lift-off'))
-            self.checksetting(
-                Setting('repeatability_missing_points', 10, '%',
-                        'Maximum amount of allowed missing points in repeatability'))
-
-            # Legacy settings
-            self.checksetting(Setting('maxjitter', 1.0, "mm", "Maximum allowed non stationary jitter"))
-            self.checksetting(Setting('maxstationaryjitter', 1.0, "mm", "Maximum allowed stationary jitter"))
-            self.checksetting(Setting('maxstationaryjitter_with_noise', 1.0, "mm",
-                                      "Maximum allowed stationary jitter with noise source"))
-            self.checksetting(Setting('jittermask', 10.0, "mm", "Non stationary jitter search mask"))
-            self.checksetting(Setting('maxactiveresponselatency', 25.0, "ms",
-                                      "Maximum allowed response latency from an active state for the initial input"))
-            self.checksetting(
-                Setting('maxidleresponselatency', 50.0, "ms", "Maximum allowed response latency from an idle state"))
-            self.checksetting(Setting('minreportingrate', 100.0, "Hz", "Minimum allowed reporting rate"))
-            self.checksetting(Setting('maxposerror', 1.0, "mm", "Maximum allowed accuracy error"))
-            self.checksetting(Setting('maxmissing', 0.0, "pcs", "Maximum allowed missing inputs"))
-            self.checksetting(Setting('maxoffset', 1.0, "mm", "Maximum allowed offset"))
-            self.checksetting(Setting('maxseparation', 12.0, "mm",
-                                      "Maximum allowed finger separation distance (vertical and horizontal)"))
-            self.checksetting(
-                Setting('maxdiagseparation', 15.0, "mm", "Maximum allowed finger separation distance (diagonal)"))
-            self.checksetting(Setting('minppi', 200.0, "ppi", "Minimum display resolution"))
-            self.checksetting(Setting('maxhoveroffset', 1.0, "mm", "Maximum allowed hover offset"))
-            self.checksetting(Setting('maxrepeaterror', 1.0, "mm", "Maximum tap repeatability error"))
-            self.checksetting(Setting('edgelimit', -1.0, "mm", "Edge area distance from edge in Tap test"))
-            self.checksetting(Setting('edgepositioningerror', 1.0, "mm", "Maximum allowed accuracy error in edge area"))
-            self.checksetting(Setting('maxedgemissing', 0.0, "pcs", "Maximum allowed missing edge inputs"))
-            self.checksetting(Setting('maxmissingswipes', 0.0, "pcs", "Maximum allowed missing swipes in swipe test"))
-            self.checksetting(Setting('maxbrokenswipes', 0.0, "pcs", "Maximum allowed broken swipes in linearity test"))
-            self.checksetting(Setting('maxghostfingerswipes', 0.0, "pcs",
-                                      "Maximum allowed swipes with ghost finger in linearity test"))
-            self.checksetting(Setting('maxmissinghover', 0.0, "pcs", "Maximum allowed missing swipes in hover test"))
-            self.checksetting(Setting('maxhoverjitter', 1.0, "mm", "Maximum allowed jitter in hover test"))
-
-            # When adding settings, remember to add them to settings.py categories
-        except: #IntegrityError:
-            logging.info(traceback.format_exc())
+        except IntegrityError:
             # Already created
             pass
 
-    def changeDatabase(self, path):
+        # Grid accuracy settings
+        self.check_setting(
+            Setting('max_error_edge', 1.5, 'mm', 'Max error in edge area (not including 4 corners and notch)'))
+        self.check_setting(
+            Setting('max_error_edge_corner_notch', 2.0, 'mm',
+                    'Max error in edge area (including 4 corners and notch'))
+        self.check_setting(
+            Setting('max_error_center', 1.0, 'mm', 'Max error in center area'))
+        self.check_setting(
+            Setting('grid_acc_missing_points', 10, '%', 'Max amount of missing points in percents'))
+
+        # Linearity settings
+        self.check_setting(
+            Setting('max_avg_of_max_errors', 0.75, 'mm',
+                    'Maximum allowed max of averages of max linearity errors '))
+        self.check_setting(
+            Setting('max_rms_error', 0.5, 'mm', 'Maximum allowed rms linearity error'))
+        self.check_setting(
+            Setting('min_report_rate', 120, 'Hz', 'Minimum reporting rate in active mode'))
+        self.check_setting(
+            Setting('min_report_rate_noise_inj_single', 120, 'Hz',
+                    'Minimum reporting rate with noise injected in active mode at single touch'))
+        self.check_setting(
+            Setting('min_report_rate_noise_inj_multi', 100, 'Hz',
+                    'Minimum reporting rate with noise injected in active mode at multi touch'))
+        self.check_setting(
+            Setting('max_missing_swipes', 10, '%', 'Maximum amount of missing swipes in percents'))
+        self.check_setting(
+            Setting('max_broken_lines', 0, 'pcs', 'Maximum amount of broken lines'))
+        self.check_setting(
+            Setting('max_ghost_fingers', 0, 'pcs', 'Maximum amount of ghost fingers'))
+        self.check_setting(Setting('jitter_mask', 10.0, 'mm', 'Non stationary jitter search mask'))
+
+        # Stationary jitter static noise settings
+        self.check_setting(
+            Setting('max_stat_jitter_no_noise', 0.5, 'mm', 'Max stationary jitter with no noise injected'))
+        self.check_setting(
+            Setting('max_stat_jitter_noise', 1.0, 'mm', 'Max stationary jitter with noise injected'))
+        self.check_setting(
+            Setting('max_noise_test_jitter', 1.0, 'mm', 'Max stationary jitter in static noise test'))
+        self.check_setting(
+            Setting('jitter_missing_points', 10, '%', 'Max percentage of allowed missing points'))
+
+        # Tapping repeatability settings
+        self.check_setting(
+            Setting('max_error_edge_down', 1.5, 'mm', 'Maximum repeatability error at the edge on pen down'))
+        self.check_setting(
+            Setting('max_error_edge_up', 1.5, 'mm', 'Maximum repeatability error at the edge on pen lift-off'))
+        self.check_setting(
+            Setting('max_error_corner_down', 1.5, 'mm', 'Maximum repeatability error in the corner on pen down'))
+        self.check_setting(
+            Setting('max_error_corner_up', 1.5, 'mm', 'Maximum repeatability error in the corner on pen lift-off'))
+        self.check_setting(
+            Setting('max_error_center_down', 1.0, 'mm', 'Maximum repeatability error at the center on pen down'))
+        self.check_setting(
+            Setting('max_error_center_up', 1.0, 'mm', 'Maximum repeatability error at the center on pen lift-off'))
+        self.check_setting(
+            Setting('repeatability_missing_points', 10, '%',
+                    'Maximum amount of allowed missing points in repeatability'))
+
+        # Legacy settings
+        self.check_setting(Setting('maxjitter', 1.0, 'mm', 'Maximum allowed non stationary jitter'))
+        self.check_setting(Setting('maxstationaryjitter', 1.0, 'mm', 'Maximum allowed stationary jitter'))
+        self.check_setting(Setting('maxstationaryjitter_with_noise', 1.0, 'mm',
+                                   'Maximum allowed stationary jitter with noise source'))
+        self.check_setting(Setting('jittermask', 10.0, 'mm', 'Non stationary jitter search mask'))
+        self.check_setting(Setting('maxactiveresponselatency', 25.0, 'ms',
+                                   'Maximum allowed response latency from an active state for the initial input'))
+        self.check_setting(
+            Setting('maxidleresponselatency', 50.0, 'ms', 'Maximum allowed response latency from an idle state'))
+        self.check_setting(Setting('minreportingrate', 100.0, 'Hz', 'Minimum allowed reporting rate'))
+        self.check_setting(Setting('maxposerror', 1.0, 'mm', 'Maximum allowed accuracy error'))
+        self.check_setting(Setting('maxmissing', 0.0, 'pcs', 'Maximum allowed missing inputs'))
+        self.check_setting(Setting('maxoffset', 1.0, 'mm', 'Maximum allowed offset'))
+        self.check_setting(Setting('maxseparation', 12.0, 'mm',
+                                   'Maximum allowed finger separation distance (vertical and horizontal)'))
+        self.check_setting(
+            Setting('maxdiagseparation', 15.0, 'mm', 'Maximum allowed finger separation distance (diagonal)'))
+        self.check_setting(Setting('minppi', 200.0, 'ppi', 'Minimum display resolution'))
+        self.check_setting(Setting('maxhoveroffset', 1.0, 'mm', 'Maximum allowed hover offset'))
+        self.check_setting(Setting('maxrepeaterror', 1.0, 'mm', 'Maximum tap repeatability error'))
+        self.check_setting(Setting('edgelimit', -1.0, 'mm', 'Edge area distance from edge in Tap test'))
+        self.check_setting(Setting('edgepositioningerror', 1.0, 'mm', 'Maximum allowed accuracy error in edge area'))
+        self.check_setting(Setting('maxedgemissing', 0.0, 'pcs', 'Maximum allowed missing edge inputs'))
+        self.check_setting(Setting('maxmissingswipes', 0.0, 'pcs', 'Maximum allowed missing swipes in swipe test'))
+        self.check_setting(Setting('maxbrokenswipes', 0.0, 'pcs', 'Maximum allowed broken swipes in linearity test'))
+        self.check_setting(Setting('maxghostfingerswipes', 0.0, 'pcs',
+                                   'Maximum allowed swipes with ghost finger in linearity test'))
+        self.check_setting(Setting('maxmissinghover', 0.0, 'pcs', 'Maximum allowed missing swipes in hover test'))
+        self.check_setting(Setting('maxhoverjitter', 1.0, 'mm', 'Maximum allowed jitter in hover test'))
+
+        # When adding settings, remember to add them to settings.py categories
+
+    def change_database(self, path):
         self.initialize(path)
-        saveLastPath(path)
+        save_last_path(path)
 
-    def add( self, data, commit = True, expire_on_commit=True ):
+    def add(self, data, commit=True, expire_on_commit=True):
         session = self.session(expire_on_commit=expire_on_commit)
-        session.add( data )
-        if commit == True:
+        session.add(data)
+        if commit:
             self.session_commit(session)
-        _id = data.id
-        session.close()
-        return _id
+        try:
+            return data.id
+        finally:
+            session.close()
 
-    def addAll( self, data, commit = True ):
+    def add_all(self, data, commit=True):
         session = self.session()
-        session.add_all( data )
-        if commit == True:
+        session.add_all(data)
+        if commit:
             self.session_commit(session)
         session.close()
 
-    def getEngine(self):
+    def get_engine(self):
         return self.db
 
     def update(self, data):
@@ -297,155 +296,152 @@ class ResultDatabase:
         # If database is locked, try again until timeout occurs
         max_wait_time = 15
         start = time.time()
-        while(True):
+        while True:
             try:
                 session.commit()
                 break
             except sqlite3.OperationalError as e:
                 if time.time() - start > max_wait_time:
                     raise e
-                else:
-                    pass
 
-    def get_test_sessions( self, dbsession=None ):
-        if dbsession is None:
-            dbsession = self.session()
+    def get_test_sessions(self, db_session=None):
+        if db_session is None:
+            db_session = self.session()
         try:
-            return dbsession.query( TestSession ).all()
+            return db_session.query(TestSession).all()
         finally:
-            dbsession.close()
+            db_session.close()
 
-    def get_test_session( self, session_id ):
+    def get_test_session(self, session_id):
         session = self.session()
         try:
-            return session.query( TestSession ).filter_by( id=session_id ).first()
+            return session.query(TestSession).filter_by(id=session_id).first()
         finally:
             session.close()
 
-    def get_TestType( self, type_id ):
+    def get_test_type(self, type_id):
         session = self.session()
         try:
-            return session.query(TestType).filter_by( id=type_id ).all()
+            return session.query(TestType).filter_by(id=type_id).all()
         finally:
             session.close()
 
-    def get_TestTypes( self ):
+    def get_test_types(self):
         session = self.session()
         try:
             return session.query(TestType).all()
         finally:
             session.close()
 
-    def get_programs( self ):
+    def get_programs(self):
         session = self.session()
         try:
-            return session.query( TestSession.program).order_by(TestSession.program)
+            return session.query(TestSession.program).order_by(TestSession.program)
         finally:
             session.close()
 
-    def get_manufacturers( self, Program ):
+    def get_manufacturers(self):
         session = self.session()
         try:
-            return session.query( TestSession.manufacturer).order_by(TestSession.manufacturer).all()
+            return session.query(TestSession.manufacturer).order_by(TestSession.manufacturer).all()
         finally:
             session.close()
 
-    def checksetting( self, setting ):
+    def check_setting(self, setting):
         session = self.session()
-        dbsetting = session.query(Setting).filter_by(id=setting.id).first()
-        if dbsetting is None:
+        db_setting = session.query(Setting).filter_by(id=setting.id).first()
+        if db_setting is None:
             # Setting does not exist
             session.add(setting)
             self.session_commit(session)
         session.close()
 
+
 # Define database tables
 
-class TestSession( Base ):
 
-# TestSession is constant to all test cases
-
+class TestSession(Base):
+    # TestSession is constant to all test cases
     __tablename__ = 'test_session'
 
-    id = Column( Integer, primary_key=True )
-    operator = Column( String )
-    starttime = Column( String )
-    endtime = Column( String )
-    invalid = Column( Boolean )
-    notes = Column( String )
-    tnt_version = Column( String )
-    tppt_version = Column( String )
-    station_id = Column( String )
+    id = Column(Integer, primary_key=True)
+    operator = Column(String)
+    starttime = Column(String)
+    endtime = Column(String)
+    invalid = Column(Boolean)
+    notes = Column(String)
+    tnt_version = Column(String)
+    tppt_version = Column(String)
+    station_id = Column(String)
 
-class TestDUT( Base ):
 
+class TestDUT(Base):
     # A DUT that is tested in one or multiple test sessions and referenced to in Test Items
     __tablename__ = 'test_dut'
-    id = Column( Integer, primary_key=True )
+    id = Column(Integer, primary_key=True)
 
     # Dut parameters
-    program = Column( String )
-    manufacturer = Column( String )
-    batch = Column( String )
-    serial = Column( String )
-    sample_id = Column( String )
-    svg_data = Column( BLOB )
+    program = Column(String)
+    manufacturer = Column(String)
+    batch = Column(String)
+    serial = Column(String)
+    sample_id = Column(String)
+    svg_data = Column(BLOB)
 
 
-class TestType( Base ):
-
-    #Device digitizer touch test types stored here
-
+class TestType(Base):
+    # Device digitizer touch test types stored here
     __tablename__ = 'test_type'
 
-    id = Column( Integer, primary_key = True )
-    name = Column( String )
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
 
-    def __init__( self, id, name ):
-        self.id = id
+    def __init__(self, _id, name):
+        self.id = _id
         self.name = name
 
-class TestItem( Base ):
 
-    #A single test related to device digitizer touch is defined here
+class TestItem(Base):
+    # A single test related to device digitizer touch is defined here
     __tablename__ = 'test_item'
 
-    id = Column( Integer, primary_key= True )
-    testsession_id = Column( Integer, ForeignKey('test_session.id', ondelete='CASCADE'), nullable=False )
-    testsession = relation( TestSession, backref = backref('test_items', order_by =  id) )
-    dut_id = Column( Integer, ForeignKey('test_dut.id'), nullable=False )
-    dut = relation( TestDUT, backref = backref('test_items', order_by =  id) )
-    starttime = Column( String )
-    endtime = Column( String )
-    slot_id = Column( Integer )
-    finger_type = Column( String )
-    invalid = Column( Boolean )
-    kmsg_log = Column( Text )
-    testtype_id = Column( Integer, ForeignKey('test_type.id', ondelete='CASCADE'), nullable=False )
-    type = relation( TestType, backref = backref('test_items', order_by = id) )
+    id = Column(Integer, primary_key=True)
+    testsession_id = Column(Integer, ForeignKey('test_session.id', ondelete='CASCADE'), nullable=False)
+    testsession = relation(TestSession, backref=backref('test_items', order_by=id))
+    dut_id = Column(Integer, ForeignKey('test_dut.id'), nullable=False)
+    dut = relation(TestDUT, backref=backref('test_items', order_by=id))
+    starttime = Column(String)
+    endtime = Column(String)
+    slot_id = Column(Integer)
+    finger_type = Column(String)
+    invalid = Column(Boolean)
+    kmsg_log = Column(Text)
+    testtype_id = Column(Integer, ForeignKey('test_type.id', ondelete='CASCADE'), nullable=False)
+    type = relation(TestType, backref=backref('test_items', order_by=id))
 
-class DutParameters( Base ):
 
-    #DUT parameters are defined here
+class DutParameters(Base):
+    # DUT parameters are defined here
     __tablename__ = 'dut_parameters'
 
-    id = Column( Integer, primary_key = True )
-    dut_id = Column( Integer, ForeignKey('test_dut.id', ondelete='CASCADE'), nullable=False )
-    dut = relation(TestDUT, backref = backref('dut_parameters', order_by = id ) )
-    name = Column( String )
-    valueFloat = Column( Float )
-    valueString = Column( String )
-    isFloat = Column( Boolean )
+    id = Column(Integer, primary_key=True)
+    dut_id = Column(Integer, ForeignKey('test_dut.id', ondelete='CASCADE'), nullable=False)
+    dut = relation(TestDUT, backref=backref('dut_parameters', order_by=id))
+    name = Column(String)
+    valueFloat = Column(Float)
+    valueString = Column(String)
+    isFloat = Column(Boolean)
+
 
 class Setting(Base):
-
     __tablename__ = 'settings'
-    id = Column(String,primary_key = True)
-    value = Column(Float,nullable=False)
+    id = Column(String, primary_key=True)
+    value = Column(Float, nullable=False)
     unit = Column(String)
     desc = Column(String)
-    def __init__(self,id,value,unit,desc):
-        self.id = id
+
+    def __init__(self, _id, value, unit, desc):
+        self.id = _id
         self.value = value
         self.unit = unit
         self.desc = desc
