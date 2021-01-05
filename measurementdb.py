@@ -19,7 +19,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean, Text, BLOB
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, BLOB
 from sqlalchemy.orm import relation, backref, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy import create_engine, event
@@ -27,12 +27,31 @@ from sqlalchemy.exc import IntegrityError
 import json
 import time
 import sqlite3
-from scriptpath import join_script_root_directory
 import logging
 
 Base = declarative_base()
 
 logger = logging.getLogger(__name__)
+
+database_path = None
+config_path = None
+
+# The global database singleton instance
+database = None
+
+
+def setup_database(db_path, conf_path):
+    global database_path, config_path
+    database_path, config_path = db_path, conf_path
+
+
+def get_database():
+    """ Returns the global database instance """
+    global database
+    if database is None:
+        db_path = get_last_path() if database_path is None else database_path
+        database = ResultDatabase(db_path)
+    return database
 
 
 def on_connect(conn, record):
@@ -40,9 +59,19 @@ def on_connect(conn, record):
 
 
 def save_last_path(path):
-    f = open(join_script_root_directory('config.json'), 'w')
-    f.write(json.dumps({'lastDB': path}))
-    f.close()
+    with open(config_path, 'w') as f:
+        f.write(json.dumps({"lastDB": path}))
+
+
+def get_last_path():
+    try:
+        with open(config_path, 'r') as f:
+            data = json.load(f)
+        return data.get('lastDB', database_path)
+
+    except FileNotFoundError as e:
+        logger.error(str(e))
+        return database_path
 
 
 def create_sqlite_indices(database_file, indices):
@@ -78,25 +107,15 @@ def create_index(database, index_name, index_values):
 
 class ResultDatabase:
 
-    def __init__(self, filename, test_case_modules):
+    def __init__(self, filename):
         self.db = None
         self.session = None
         self.dbpath = None
 
-        # curved line test contains different tests
-        # define new ones here
-        self.CURVED_LINE_TESTS = {1: 'Handwriting'}
-
-        self.CURVED_ANALYSIS_TYPES = {1: ['path_accuracy',
-                                          'curved_path_linearity',
-                                          'reported_pos_proximity_to_robot_pos',
-                                          'path_length_comparison']
-                                      }
-
-        self.initialize(filename, test_case_modules)
+        self.initialize(filename)
         save_last_path(filename)
 
-    def initialize(self, filename, test_case_modules):
+    def initialize(self, filename):
 
         self.dbpath = filename
         self.db = create_engine('sqlite:///' + filename)
@@ -106,23 +125,16 @@ class ResultDatabase:
 
         # These are database indices for various test and test result tables.
         indices = [
-            ['dut_parameters', 'dut_id'],
-            ['test_item', 'testsession_id']
-            ]
+            ('dut_parameters', 'dut_id'),
+            ('session_parameters', 'testsession_id'),
+            ('test_item', 'testsession_id'),
+            ('test_result', 'test_id'),
+        ]
 
         for test in BaseTest.__subclasses__():
             indices.append((test.__tablename__, 'test_id'))
         for result in BaseResults.__subclasses__():
             indices.append((result.__tablename__, 'gesture_id'))
-
-        # Insert database indices defined by test case modules.
-        # TODO (b/148627899): Remove when legacy test cases are purged
-        for module in test_case_modules:
-            if not hasattr(module, 'DB_TABLE_INDICES'):
-                continue
-
-            for module_indices in module.DB_TABLE_INDICES:
-                indices.append(module_indices)
 
         create_sqlite_indices(filename, indices)
 
@@ -420,8 +432,19 @@ class TestItem(Base):
     type = relation(TestType, backref=backref('test_items', order_by=id))
 
 
+class SessionParameters(Base):
+    __tablename__ = 'session_parameters'
+
+    id = Column(Integer, primary_key=True)
+    testsession_id = Column(Integer, ForeignKey('test_session.id', ondelete='CASCADE'), nullable=False)
+    testsession = relation(TestSession, backref=backref('session_parameters', order_by=id))
+    name = Column(String)
+    valueFloat = Column(Float)
+    valueString = Column(String)
+    isFloat = Column(Boolean)
+
+
 class DutParameters(Base):
-    # DUT parameters are defined here
     __tablename__ = 'dut_parameters'
 
     id = Column(Integer, primary_key=True)
@@ -445,6 +468,15 @@ class Setting(Base):
         self.value = value
         self.unit = unit
         self.desc = desc
+
+
+class TestResult(Base):
+    __tablename__ = 'test_result'
+    id = Column(Integer, primary_key=True)
+    test_id = Column(Integer, ForeignKey('test_item.id', ondelete='CASCADE'), nullable=False)
+    test = relation(TestItem, backref=backref('test_results'))
+    result = Column(String)
+    calculated = Column(DateTime)
 
 
 def camel_to_snake(camel):
