@@ -145,129 +145,58 @@ class ResultDatabase:
             #  hash from name?
             # Note: TestType integer IDs must match the ones used in analysis.
             session = self.session()
-            session.add(TestType(0, 'One Finger Tap Test'))
-            session.add(TestType(1, 'One Finger Swipe Test'))
-            session.add(TestType(2, 'One Finger First Contact Latency Test'))
-            session.add(TestType(5, 'MultiFinger Swipe Test'))
-            session.add(TestType(8, 'MultiFinger Tap Test'))
-            session.add(TestType(9, 'One Finger Stationary Jitter'))
-            session.add(TestType(10, 'One Finger Tap Repeatability'))
-            session.add(TestType(11, 'One Finger Stationary Reporting Rate Test'))
-            session.add(TestType(12, 'One Finger Non Stationary Reporting Rate Test'))
-            session.add(TestType(13, 'Linearity Test'))
-            session.add(TestType(14, 'Separation Test'))
-            session.add(TestType(15, 'Grid Accuracy Test'))
-            session.add(TestType(16, 'Stationary Jitter Static Noise Test'))
-            session.add(TestType(17, 'One Finger Tapping Repeatability Test'))
-            session.add(TestType(18, 'Finger Tracking Test'))
-            session.add(TestType(19, 'Finger To Edge Test'))
-            session.add(TestType(20, 'Swipe Test'))
-            session.add(TestType(21, 'Pinch Test'))
-            session.add(TestType(22, 'Tap Test'))
-            session.add(TestType(23, 'Repeated Taps Test'))
-            session.add(TestType(24, 'Stationary Then Move Test'))
-            session.add(TestType(25, 'Drumroll Test'))
-            session.add(TestType(26, 'Compass Test'))
-            session.add(TestType(27, 'Compass With Taps Test'))
-            session.add(TestType(28, 'Stationary With Taps Test'))
+            session.add(TestType(0, 'Finger Tracking Test'))
+            session.add(TestType(1, 'Finger To Edge Test'))
+            session.add(TestType(2, 'Swipe Test'))
+            session.add(TestType(3, 'Pinch Test'))
+            session.add(TestType(4, 'Tap Test'))
+            session.add(TestType(5, 'Repeated Taps Test'))
+            session.add(TestType(6, 'Stationary Then Move Test'))
+            session.add(TestType(7, 'Drumroll Test'))
+            session.add(TestType(8, 'Compass Test'))
+            session.add(TestType(9, 'Compass With Taps Test'))
+            session.add(TestType(10, 'Stationary With Taps Test'))
             session.commit()
             session.close()
         except IntegrityError:
             # Already created
             pass
 
-        # Grid accuracy settings
         self.check_setting(
-            Setting('max_error_edge', 1.5, 'mm', 'Max error in edge area (not including 4 corners and notch)'))
+            Setting('max_linearity', 2.0, 'mm', 'Max linearity error limit'))
         self.check_setting(
-            Setting('max_error_edge_corner_notch', 2.0, 'mm',
-                    'Max error in edge area (including 4 corners and notch'))
+            Setting('rms_linearity', 0.5, 'mm', 'RMS linearity error limit'))
         self.check_setting(
-            Setting('max_error_center', 1.0, 'mm', 'Max error in center area'))
+            Setting('max_circularity', 2.0, 'mm', 'Max circularity error limit'))
         self.check_setting(
-            Setting('grid_acc_missing_points', 10, '%', 'Max amount of missing points in percents'))
+            Setting('rms_circularity', 0.5, 'mm', 'RMS circularity error limit'))
+        self.check_setting(
+            Setting('angle_error', 4.0, 'deg', 'Maximum angle error for swipe'))
+        self.check_setting(
+            Setting('gap_ratio', 1.8, '', 'Maximum ratio of gaps between adjacent touch reports'))
+        self.check_setting(
+            Setting('reversed_motion', 1.0, 'mm', 'Maximum reversed motion during swipe'))
+        self.check_setting(
+            Setting('report_rate', 60.0, 'Hz', 'Minimum report rate'))
+        self.check_setting(
+            Setting('stationary_movement', 1.0, 'mm', 'Maximum movement for stationary touches'))
+        self.check_setting(
+            Setting('minimum_radius', 0.5, 'mm', 'Minimum enclosing radius for repeated taps'))
+        self.check_setting(
+            Setting('drumroll_radius', 2.0, 'mm', 'Minimum enclosing radius for any drumroll location'))
+        self.check_setting(
+            Setting('edge_range', 0.5, 'mm', 'Maximum gap for reporting from screen edge'))
+        self.check_setting(
+            Setting('swipe_length', 1.0, 'mm', 'Maximum error for length of swipe'))
+        self.check_setting(
+            Setting('packet_count', 3, '', 'Minimum packet count'))
+        self.check_setting(
+            Setting('movement_hysteresis', 2.0, '', 'Maximum ratio (d1/d2) of distance moved for a previously '
+                                                    'stationary finger, where d1 is the distance from the first to '
+                                                    'second positions and d2 is the distance from the second to third '
+                                                    'positions'))
 
-        # Linearity settings
-        self.check_setting(
-            Setting('max_avg_of_max_errors', 0.75, 'mm',
-                    'Maximum allowed max of averages of max linearity errors '))
-        self.check_setting(
-            Setting('max_rms_error', 0.5, 'mm', 'Maximum allowed rms linearity error'))
-        self.check_setting(
-            Setting('min_report_rate', 120, 'Hz', 'Minimum reporting rate in active mode'))
-        self.check_setting(
-            Setting('min_report_rate_noise_inj_single', 120, 'Hz',
-                    'Minimum reporting rate with noise injected in active mode at single touch'))
-        self.check_setting(
-            Setting('min_report_rate_noise_inj_multi', 100, 'Hz',
-                    'Minimum reporting rate with noise injected in active mode at multi touch'))
-        self.check_setting(
-            Setting('max_missing_swipes', 10, '%', 'Maximum amount of missing swipes in percents'))
-        self.check_setting(
-            Setting('max_broken_lines', 0, 'pcs', 'Maximum amount of broken lines'))
-        self.check_setting(
-            Setting('max_ghost_fingers', 0, 'pcs', 'Maximum amount of ghost fingers'))
-        self.check_setting(Setting('jitter_mask', 10.0, 'mm', 'Non stationary jitter search mask'))
-
-        # Stationary jitter static noise settings
-        self.check_setting(
-            Setting('max_stat_jitter_no_noise', 0.5, 'mm', 'Max stationary jitter with no noise injected'))
-        self.check_setting(
-            Setting('max_stat_jitter_noise', 1.0, 'mm', 'Max stationary jitter with noise injected'))
-        self.check_setting(
-            Setting('max_noise_test_jitter', 1.0, 'mm', 'Max stationary jitter in static noise test'))
-        self.check_setting(
-            Setting('jitter_missing_points', 10, '%', 'Max percentage of allowed missing points'))
-
-        # Tapping repeatability settings
-        self.check_setting(
-            Setting('max_error_edge_down', 1.5, 'mm', 'Maximum repeatability error at the edge on pen down'))
-        self.check_setting(
-            Setting('max_error_edge_up', 1.5, 'mm', 'Maximum repeatability error at the edge on pen lift-off'))
-        self.check_setting(
-            Setting('max_error_corner_down', 1.5, 'mm', 'Maximum repeatability error in the corner on pen down'))
-        self.check_setting(
-            Setting('max_error_corner_up', 1.5, 'mm', 'Maximum repeatability error in the corner on pen lift-off'))
-        self.check_setting(
-            Setting('max_error_center_down', 1.0, 'mm', 'Maximum repeatability error at the center on pen down'))
-        self.check_setting(
-            Setting('max_error_center_up', 1.0, 'mm', 'Maximum repeatability error at the center on pen lift-off'))
-        self.check_setting(
-            Setting('repeatability_missing_points', 10, '%',
-                    'Maximum amount of allowed missing points in repeatability'))
-
-        # Legacy settings
-        self.check_setting(Setting('maxjitter', 1.0, 'mm', 'Maximum allowed non stationary jitter'))
-        self.check_setting(Setting('maxstationaryjitter', 1.0, 'mm', 'Maximum allowed stationary jitter'))
-        self.check_setting(Setting('maxstationaryjitter_with_noise', 1.0, 'mm',
-                                   'Maximum allowed stationary jitter with noise source'))
-        self.check_setting(Setting('jittermask', 10.0, 'mm', 'Non stationary jitter search mask'))
-        self.check_setting(Setting('maxactiveresponselatency', 25.0, 'ms',
-                                   'Maximum allowed response latency from an active state for the initial input'))
-        self.check_setting(
-            Setting('maxidleresponselatency', 50.0, 'ms', 'Maximum allowed response latency from an idle state'))
-        self.check_setting(Setting('minreportingrate', 100.0, 'Hz', 'Minimum allowed reporting rate'))
-        self.check_setting(Setting('maxposerror', 1.0, 'mm', 'Maximum allowed accuracy error'))
-        self.check_setting(Setting('maxmissing', 0.0, 'pcs', 'Maximum allowed missing inputs'))
-        self.check_setting(Setting('maxoffset', 1.0, 'mm', 'Maximum allowed offset'))
-        self.check_setting(Setting('maxseparation', 12.0, 'mm',
-                                   'Maximum allowed finger separation distance (vertical and horizontal)'))
-        self.check_setting(
-            Setting('maxdiagseparation', 15.0, 'mm', 'Maximum allowed finger separation distance (diagonal)'))
-        self.check_setting(Setting('minppi', 200.0, 'ppi', 'Minimum display resolution'))
-        self.check_setting(Setting('maxhoveroffset', 1.0, 'mm', 'Maximum allowed hover offset'))
-        self.check_setting(Setting('maxrepeaterror', 1.0, 'mm', 'Maximum tap repeatability error'))
-        self.check_setting(Setting('edgelimit', -1.0, 'mm', 'Edge area distance from edge in Tap test'))
-        self.check_setting(Setting('edgepositioningerror', 1.0, 'mm', 'Maximum allowed accuracy error in edge area'))
-        self.check_setting(Setting('maxedgemissing', 0.0, 'pcs', 'Maximum allowed missing edge inputs'))
-        self.check_setting(Setting('maxmissingswipes', 0.0, 'pcs', 'Maximum allowed missing swipes in swipe test'))
-        self.check_setting(Setting('maxbrokenswipes', 0.0, 'pcs', 'Maximum allowed broken swipes in linearity test'))
-        self.check_setting(Setting('maxghostfingerswipes', 0.0, 'pcs',
-                                   'Maximum allowed swipes with ghost finger in linearity test'))
-        self.check_setting(Setting('maxmissinghover', 0.0, 'pcs', 'Maximum allowed missing swipes in hover test'))
-        self.check_setting(Setting('maxhoverjitter', 1.0, 'mm', 'Maximum allowed jitter in hover test'))
-
-        # When adding settings, remember to add them to settings.py categories
+        # When adding settings, remember to add them to settings.py categories in the TPPT analysis repo
 
     def change_database(self, path):
         self.initialize(path)
