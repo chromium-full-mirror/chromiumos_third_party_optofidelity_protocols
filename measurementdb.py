@@ -156,6 +156,8 @@ class ResultDatabase:
             session.add(TestType(8, 'Compass Test'))
             session.add(TestType(9, 'Compass With Taps Test'))
             session.add(TestType(10, 'Stationary With Taps Test'))
+            session.add(TestType(11, 'Single Line With Noise Test'))
+            session.add(TestType(12, 'Stationary With Noise Test'))
             session.commit()
             session.close()
         except IntegrityError:
@@ -588,6 +590,20 @@ class RepeatedTapsResults(Base, BaseResults):
     pass
 
 
+class SingleLineWithNoiseTest(Base, BaseTest):
+    start_x = Column(Float)
+    start_y = Column(Float)
+    end_x = Column(Float)
+    end_y = Column(Float)
+
+    finger_size = Column(Float)
+    frequency = Column(Float)
+
+
+class SingleLineWithNoiseResults(Base, BaseResults):
+    pass
+
+
 class StationaryThenMoveTest(Base, BaseTest):
     start_x = Column(Float)
     start_y = Column(Float)
@@ -599,6 +615,18 @@ class StationaryThenMoveTest(Base, BaseTest):
 
 
 class StationaryThenMoveResults(Base, BaseResults):
+    pass
+
+
+class StationaryWithNoiseTest(Base, BaseTest):
+    tap_x = Column(Float)
+    tap_y = Column(Float)
+
+    finger_size = Column(Float)
+    frequency = Column(Float)
+
+
+class StationaryWithNoiseResults(Base, BaseResults):
     pass
 
 
