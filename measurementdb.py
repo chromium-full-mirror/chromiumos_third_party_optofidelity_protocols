@@ -158,6 +158,7 @@ class ResultDatabase:
             session.add(TestType(10, 'Stationary With Taps Test'))
             session.add(TestType(11, 'Single Line With Noise Test'))
             session.add(TestType(12, 'Stationary With Noise Test'))
+            session.add(TestType(13, 'Thumb Test'))
             session.commit()
             session.close()
         except IntegrityError:
@@ -677,4 +678,17 @@ class TapTest(Base, BaseTest):
 
 
 class TapResults(Base, BaseResults):
+    pass
+
+
+class ThumbTest(Base, BaseTest):
+    # For multi-finger lines, these are the coordinates of the primary finger (left-most with
+    # zero azimuth)
+    start_x = Column(Float)
+    start_y = Column(Float)
+    end_x = Column(Float)
+    end_y = Column(Float)
+
+
+class ThumbResults(Base, BaseResults):
     pass
