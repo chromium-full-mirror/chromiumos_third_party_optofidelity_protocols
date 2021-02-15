@@ -536,8 +536,6 @@ class FingerToEdgeTest(Base, BaseTest):
     end_x = Column(Float)
     end_y = Column(Float)
 
-    finger_size = Column(Float)
-
 
 class FingerToEdgeResults(Base, BaseResults):
     pass
