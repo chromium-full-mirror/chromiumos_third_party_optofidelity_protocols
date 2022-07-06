@@ -160,6 +160,7 @@ class ResultDatabase:
             session.add(TestType(12, 'Stationary With Noise Test'))
             session.add(TestType(13, 'Thumb Test'))
             session.add(TestType(14, 'Palm Tap Test'))
+            session.add(TestType(15, 'Physical Click Test'))
             session.commit()
             session.close()
         except IntegrityError:
@@ -485,6 +486,7 @@ class BaseResults(object):
     time = Column(Float)
     event = Column(Integer)
     tool_type = Column(Integer)
+    button_pressed = Column(Boolean)
 
 
 class CompassTest(Base, BaseTest):
@@ -599,6 +601,16 @@ class PalmTapTest(Base, BaseTest):
 
 
 class PalmTapResults(Base, BaseResults):
+    pass
+
+
+class PhysicalClickTest(Base, BaseTest):
+    tap_x = Column(Float)
+    tap_y = Column(Float)
+    finger_size = Column(Float)
+
+
+class PhysicalClickResults(Base, BaseResults):
     pass
 
 
