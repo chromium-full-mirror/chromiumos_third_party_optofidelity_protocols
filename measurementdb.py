@@ -162,6 +162,7 @@ class ResultDatabase:
             session.add(TestType(14, 'Palm Tap Test'))
             session.add(TestType(15, 'Physical Click Test'))
             session.add(TestType(16, 'Force Test'))
+            session.add(TestType(17, 'Force Hysteresis Test'))
             session.commit()
             session.close()
         except IntegrityError:
@@ -623,6 +624,18 @@ class ForceTest(Base, BaseTest):
 
 
 class ForceResults(Base, BaseResults):
+    pass
+
+
+class ForceHysteresisTest(Base, BaseTest):
+    tap_x = Column(Float)
+    tap_y = Column(Float)
+    finger_size = Column(Float)
+    high_force = Column(Float)
+    force = Column(Float)
+
+
+class ForceHysteresisResults(Base, BaseResults):
     pass
 
 
