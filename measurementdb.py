@@ -161,6 +161,7 @@ class ResultDatabase:
             session.add(TestType(13, 'Thumb Test'))
             session.add(TestType(14, 'Palm Tap Test'))
             session.add(TestType(15, 'Physical Click Test'))
+            session.add(TestType(16, 'Force Test'))
             session.commit()
             session.close()
         except IntegrityError:
@@ -611,6 +612,17 @@ class PhysicalClickTest(Base, BaseTest):
 
 
 class PhysicalClickResults(Base, BaseResults):
+    pass
+
+
+class ForceTest(Base, BaseTest):
+    tap_x = Column(Float)
+    tap_y = Column(Float)
+    finger_size = Column(Float)
+    force = Column(Float)
+
+
+class ForceResults(Base, BaseResults):
     pass
 
 
